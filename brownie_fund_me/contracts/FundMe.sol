@@ -1,4 +1,4 @@
-// SPDX-License-Identifier MIT
+// SPDX-License-Identifier: MIT
 
 pragma solidity >=0.6.0 <0.9.0;
 
@@ -11,44 +11,34 @@ contract FundMe {
     mapping(address => uint256) public addressToAmountFunded;
     address[] public funders;
     address public owner;
+    AggregatorV3Interface public priceFeed;
 
-    constructor() public {
+    constructor(address _priceFeed) public {
+        priceFeed = AggregatorV3Interface(_priceFeed);
         owner = msg.sender;
     }
 
     function fund() public payable {
-        // $50
-        uint256 minimumUSD = 50 * (10**18);
-
+        uint256 minimumUSD = 1 * 10**18;
         require(
-            getConversationRate(msg.value) >= minimumUSD,
-            "You need to spend at least $50 of ETH"
+            getConversionRate(msg.value) >= minimumUSD,
+            "You need to spend more ETH!"
         );
-
         addressToAmountFunded[msg.sender] += msg.value;
-
         funders.push(msg.sender);
     }
 
     function getVersion() public view returns (uint256) {
-        AggregatorV3Interface priceFeed = AggregatorV3Interface(
-            0x9326BFA02ADD2366b30bacB125260Af641031331
-        );
         return priceFeed.version();
     }
 
     function getPrice() public view returns (uint256) {
-        AggregatorV3Interface priceFeed = AggregatorV3Interface(
-            0x9326BFA02ADD2366b30bacB125260Af641031331
-        );
-
         (, int256 answer, , , ) = priceFeed.latestRoundData();
-
         return uint256(answer * 10000000000);
     }
 
-    // 1 gwei:1000000000
-    function getConversationRate(uint256 ethAmount)
+    // 1000000000
+    function getConversionRate(uint256 ethAmount)
         public
         view
         returns (uint256)
@@ -56,7 +46,6 @@ contract FundMe {
         uint256 ethPrice = getPrice();
         uint256 ethAmountInUsd = (ethPrice * ethAmount) / 1000000000000000000;
         return ethAmountInUsd;
-        //0.000004079130000000
     }
 
     modifier onlyOwner() {
@@ -66,6 +55,7 @@ contract FundMe {
 
     function withdraw() public payable onlyOwner {
         msg.sender.transfer(address(this).balance);
+
         for (
             uint256 funderIndex = 0;
             funderIndex < funders.length;
